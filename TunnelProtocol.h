@@ -22,6 +22,10 @@ namespace TunnelProtocol {
 #define COMMAND_RESULT_SUCCESS		1
 #define COMMAND_RESULT_FAILURE		0
 
+// Detection mode for StartDetectionInfo_t
+#define DETECTION_MODE_UAVRT		0	// uavrt_detection C++ detector (default)
+#define DETECTION_MODE_PYTHON		1	// Python pulse_detector.py
+
 // HeartBeat_t codes
 #define HEARTBEAT_SYSTEM_ID_MAVLINKCONTROLLER	1
 #define HEARTBEAT_SYSTEM_ID_CHANNELIZER			2
@@ -84,6 +88,7 @@ typedef struct {
 
 	uint32_t		radio_center_frequency_hz;	// The center frequency to tune the radio to for sample collection
 	uint32_t		gain;  						// Sensitivity gain setting for airspy 1- 21
+	uint32_t		detection_mode;				// DETECTION_MODE_UAVRT (0) or DETECTION_MODE_PYTHON (1)
 } StartDetectionInfo_t;
 
 typedef struct {
