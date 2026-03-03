@@ -177,12 +177,12 @@ typedef struct {
 	double 		group_snr;
 	// This is the estimated noise PSD at the frequency of the pulse.
 	double		noise_psd;
-	// Detection status (bool converted to uint8_t)
-	// This property indicates if the pulse is a subthreshold pulse (0),
-	// superthreshold pulse (1), or confirmed pulse (2). All confirmed pulses
-	// are superthreshold pulses. Confirmed status mean that pulses in near
-	// this frequency were previously detected and this pulse aligns in time
-	// with predictions based on the prior pulse and the tag priori.
+	// Detection status (uint8_t)
+	//   0 = subthreshold pulse
+	//   1 = superthreshold pulse
+	//   2 = confirmed pulse (superthreshold + aligned with prior prediction)
+	//   3 = no pulse detected (detector searched this cycle and found nothing;
+	//       noise_psd carries the observed noise floor)
 	uint8_t 	detection_status;
 	// Confirmation status (bool converted to uint8_t)
 	// This property indicates if the pulse has been confirmed (1), or is of yet
