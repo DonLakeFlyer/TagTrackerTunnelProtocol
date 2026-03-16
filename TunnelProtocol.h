@@ -17,6 +17,7 @@ namespace TunnelProtocol {
 #define COMMAND_ID_STOP_ROTATION	11	// Cancel rotation, these ids are never sent as commands but are used to log the start and stop of rotation in the csv files
 #define COMMAND_ID_SAVE_LOGS		12	// Save logs to usb sd card connected to rpi
 #define COMMAND_ID_CLEAN_LOGS		13	// Clean logs from rpi
+#define COMMAND_ID_AIRSPY_STATUS	14	// Query whether an AirSpy device is connected
 
 // AckInfo_t result values
 #define COMMAND_RESULT_SUCCESS		1
@@ -62,7 +63,7 @@ typedef struct {
 	uint32_t		pulse_width_msecs;
 	// Intra-pulse duration 1
 	uint32_t		intra_pulse1_msecs;
-	// Intra-pulse duration 2
+	// Intra-pulse duration 2airspy_info
 	uint32_t		intra_pulse2_msecs;
 	// Intra-pulse uncertainty
 	uint32_t		intra_pulse_uncertainty_msecs;
@@ -133,6 +134,10 @@ typedef struct {
     HeaderInfo_t	header;
 	uint32_t		gain;  // Sensitivity gain setting for airspy 1- 21
 } RawCaptureInfo_t;
+
+typedef struct {
+    HeaderInfo_t	header;
+} AirspyStatusInfo_t;
 
 typedef struct {
     HeaderInfo_t	header;
@@ -232,6 +237,7 @@ typedef struct {
 	sizeof(TunnelProtocol::CleanLogsInfo_t) 		<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::PulseInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::RawCaptureInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+	sizeof(TunnelProtocol::AirspyStatusInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::Heartbeat_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::StatusConfirmationInfo_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN))
 
