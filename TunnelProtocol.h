@@ -171,11 +171,15 @@ typedef struct {
 	// to be able to reconstruct the pulse group if needed. The value is incremented
 	// with each new pulse group sent out over UDP/ROS.
 	uint16_t 	group_seq_counter;
-	// Pulse group index (uint16_t)
-	// If more than one pulse is used for incoherent summing, the pulse group
-	// will have up to K pulses. This property indicates where this pulse exists
-	// in that pulse group. This property and the start time property can be
-	// used to recollect pulse groups if needed.
+	// Pulse group index / activity hypothesis (uint16_t)
+	// When the Python detector reports a single collapsed detection for
+	// a K-pulse fold, this field encodes the winning rate hypothesis:
+	//   0           = rate A only (resting / primary PRI)
+	//   1           = rate B only (moving / secondary PRI)
+	//   2 .. K-2    = A→B switch at change-point c  (value = 1 + c)
+	//   K-1 .. 2K-4 = B→A switch at change-point c  (value = K - 2 + c)
+	// For single-rate tags this field is always 0.
+	// Legacy usage (individual pulse within K-group) is no longer sent.
 	uint16_t 	group_ind;
 	// Pulse group SNR (float64/double)
 	// TBD
