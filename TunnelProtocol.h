@@ -90,6 +90,13 @@ typedef struct {
 	uint32_t		radio_center_frequency_hz;	// The center frequency to tune the radio to for sample collection
 	uint32_t		gain;  						// Sensitivity gain setting for airspy 1- 21
 	uint32_t		detection_mode;				// DETECTION_MODE_UAVRT (0) or DETECTION_MODE_PYTHON (1)
+
+	// Python detector only: detection sensitivity and confidence thresholds.
+	// detection_margin: multiplier on EVT threshold (e.g. 0.90 = 10% more sensitive). 0 = use default (0.90).
+	// confidence_ratio: score/threshold ratio for confirmed status (e.g. 1.3). 0 = use default (1.3).
+	// These fields are ignored by uavrt_detection (C++ detector).
+	double			detection_margin;
+	double			confidence_ratio;
 } StartDetectionInfo_t;
 
 typedef struct {
