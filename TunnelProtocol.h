@@ -132,7 +132,8 @@ typedef struct {
 
 typedef struct {
     HeaderInfo_t	header;
-	uint32_t		gain;  // Sensitivity gain setting for airspy 1- 21
+	uint32_t		gain;  			// Sensitivity gain setting for airspy 1- 21
+	uint32_t		frequency_hz;	// Frequency to tune to for capture
 } RawCaptureInfo_t;
 
 typedef struct {
