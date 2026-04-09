@@ -219,6 +219,11 @@ typedef struct {
 	float 		orientation_w;
 } PulseInfo_t;
 
+static constexpr uint8_t kSubthresholdDetectionStatus   = 0;
+static constexpr uint8_t kSuperthresholdDetectionStatus  = 1;
+static constexpr uint8_t kConfirmedDetectionStatus       = 2;
+static constexpr uint8_t kNoPulseDetectionStatus         = 3;
+
 typedef struct {
     HeaderInfo_t	header;
 
