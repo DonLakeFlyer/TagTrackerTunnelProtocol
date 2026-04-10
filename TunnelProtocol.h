@@ -179,11 +179,21 @@ typedef struct {
 	// to be able to reconstruct the pulse group if needed. The value is incremented
 	// with each new pulse group sent out over UDP/ROS.
 	uint16_t 	group_seq_counter;
-	// Pulse group index (uint16_t)
-	// If more than one pulse is used for incoherent summing, the pulse group
-	// will have up to K pulses. This property indicates where this pulse exists
-	// in that pulse group. This property and the start time property can be
-	// used to recollect pulse groups if needed.
+	// Pulse group index / rate-switch hypothesis (uint16_t)
+	//
+	// C++ detector (DETECTION_MODE_UAVRT):
+	//   Index of this pulse within its K-pulse group (0..K-1).
+	//   Secondary-rate detections arrive on a separate tag_id (id + 1).
+	//
+	// Python detector (DETECTION_MODE_PYTHON):
+	//   Encodes the winning rate-switch hypothesis for the K-group.
+	//   Both rates are handled in a single detector process (same tag_id).
+	//     0          = pure rate A (primary/resting TIP)
+	//     1          = pure rate B (secondary/moving TIP)
+	//     2..K-1     = A→B switch at change-point c  (group_ind = 1 + c)
+	//     K..2K-3    = B→A switch at change-point c  (group_ind = K - 1 + c)
+	//   When intra_pulse2_msecs is 0 (single-rate tag), group_ind is
+	//   always 0.
 	uint16_t 	group_ind;
 	// Pulse group SNR (float64/double)
 	// TBD
@@ -195,28 +205,32 @@ typedef struct {
 	//   1 = superthreshold pulse
 	//   2 = confirmed pulse (superthreshold + aligned with prior prediction)
 	//   3 = no pulse detected (detector searched this cycle and found nothing;
-	//       noise_psd carries the observed noise floor)
+	//       noise_psd carries the observed noise floor).
+	//       C++ detector: two separate processes for dual-rate tags, so two
+	//         no-detection messages per cycle (one per tag_id).
+	//       Python detector: single process handles both rates, so only one
+	//         no-detection message per cycle per tag.
+	//       For status 3: snr=0, predict_next=0, group_ind=0,
+	//       stft_score carries the best sub-threshold score ratio
+	//       (Python) or 0 (C++).
 	uint8_t 	detection_status;
 	// Confirmation status (bool converted to uint8_t)
 	// This property indicates if the pulse has been confirmed (1), or is of yet
 	// unconfirmed (0). Confirmed pulses had a preceding pulse that was detected
 	// and projected a next pulse that aligned with this pulse.
 	uint8_t 	confirmed_status;
-	// This is the longitude of the antenna when the pulse was received. 
-	double 		position_x;
-	// This is the latitude of the antenna when the pulse was received. 
-	double 		position_y;
-	// This is the altitude of the antenna when the pulse was received in meters
-	// above the launch location.
-	double 		position_z;
-	// x element of the antenna orientation quaternion in free space.
-	float 		orientation_x;
-	// y element of the antenna orientation quaternion in free space.
-	float 		orientation_y;
-	// z element of the antenna orientation quaternion in free space.
-	float 		orientation_z;
-	// w element of the antenna orientation quaternion in free space.
-	float 		orientation_w;
+	// Latitude of the antenna when the pulse was received (degrees).
+	double 		latitude;
+	// Longitude of the antenna when the pulse was received (degrees).
+	double 		longitude;
+	// Altitude of the antenna when the pulse was received (meters above launch).
+	double 		altitude_rel;
+	// Roll angle of the antenna in degrees.
+	float 		roll_deg;
+	// Pitch angle of the antenna in degrees.
+	float 		pitch_deg;
+	// Yaw (heading) angle of the antenna in degrees.
+	float 		yaw_deg;
 } PulseInfo_t;
 
 typedef struct {
