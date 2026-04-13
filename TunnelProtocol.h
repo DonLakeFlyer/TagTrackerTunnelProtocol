@@ -101,6 +101,11 @@ typedef struct {
 	// These fields are ignored by uavrt_detection (C++ detector).
 	double			detection_margin;
 	double			confidence_ratio;
+
+	// Enable verbose per-hypothesis debug logging in the Python detector.
+	// 0 = normal logging, non-zero = enable --debug flag.
+	// Also enables debug output for uavrt_detection when non-zero.
+	uint32_t		debug_detector;
 } StartDetectionInfo_t;
 
 typedef struct {
@@ -158,6 +163,7 @@ typedef struct {
 	uint32_t		n_slices;					// Number of heading slices (informational)
 	double			detection_margin;			// EVT threshold multiplier (0 = use default 0.90)
 	double			confidence_ratio;			// Score/threshold ratio for confirmed status (0 = use default 1.3)
+	uint32_t		debug_detector;				// Enable verbose debug logging (0 = off, non-zero = on)
 } StartRotationDetection_t;
 
 typedef struct {
