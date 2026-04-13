@@ -4,20 +4,24 @@
 
 namespace TunnelProtocol {
 
-#define COMMAND_ID_ACK              1   // Ack response to command
-#define COMMAND_ID_START_TAGS		2   // Previous tag set should be cleared, new tags are about to be uploaded
-#define COMMAND_ID_END_TAGS			3   // All new tags have been uploaded
-#define COMMAND_ID_TAG              4   // Tag info
-#define COMMAND_ID_START_DETECTION  5   // Start pulse detection
-#define COMMAND_ID_STOP_DETECTION   6   // Stop pulse detection
-#define COMMAND_ID_PULSE           	7   // Detected pulse value
-#define COMMAND_ID_RAW_CAPTURE      8 	// Capture raw sdr data
-#define COMMAND_ID_HEARTBEAT	   	9  	// Heartbeat message
-#define COMMAND_ID_START_ROTATION	10	// Start rotation, these ids are never sent as commands but are used to log the start and stop of rotation in the csv files
-#define COMMAND_ID_STOP_ROTATION	11	// Cancel rotation, these ids are never sent as commands but are used to log the start and stop of rotation in the csv files
-#define COMMAND_ID_SAVE_LOGS		12	// Save logs to usb sd card connected to rpi
-#define COMMAND_ID_CLEAN_LOGS		13	// Clean logs from rpi
-#define COMMAND_ID_AIRSPY_STATUS	14	// Query whether an AirSpy device is connected
+#define COMMAND_ID_ACK              			1   // Ack response to command
+#define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
+#define COMMAND_ID_END_TAGS						3   // All new tags have been uploaded
+#define COMMAND_ID_TAG              			4   // Tag info
+#define COMMAND_ID_START_DETECTION  			5   // Start pulse detection
+#define COMMAND_ID_STOP_DETECTION  				6   // Stop pulse detection
+#define COMMAND_ID_PULSE           				7   // Detected pulse value
+#define COMMAND_ID_RAW_CAPTURE      			8 	// Capture raw sdr data
+#define COMMAND_ID_HEARTBEAT	   				9  	// Heartbeat message
+#define COMMAND_ID_START_ROTATION				10	// Start rotation, these ids are never sent as commands but are used to log the start and stop of rotation in the csv files
+#define COMMAND_ID_STOP_ROTATION				11	// Cancel rotation, these ids are never sent as commands but are used to log the start and stop of rotation in the csv files
+#define COMMAND_ID_SAVE_LOGS					12	// Save logs to usb sd card connected to rpi
+#define COMMAND_ID_CLEAN_LOGS					13	// Clean logs from rpi
+#define COMMAND_ID_AIRSPY_STATUS				14	// Query whether an AirSpy device is connected
+#define COMMAND_ID_START_ROTATION_DETECTION		15	// Start rotation detection sequence (Python detector only)
+#define COMMAND_ID_START_DETECTION_AT_HEADING	16	// Start Python detector at heading; auto-stops on pulse/no-pulse
+#define COMMAND_ID_STOP_ROTATION_DETECTION		17	// Stop rotation detection and compute bearing (Python detector only)
+#define COMMAND_ID_BEARING_RESULT				18	// Bearing calculation result sent to GCS (Python detector only)
 
 // AckInfo_t result values
 #define COMMAND_RESULT_SUCCESS		1
@@ -150,6 +154,35 @@ typedef struct {
 typedef struct {
     HeaderInfo_t	header;
 
+	uint32_t		radio_center_frequency_hz;	// Center frequency for SDR tuning
+	uint32_t		n_slices;					// Number of heading slices (informational)
+	double			detection_margin;			// EVT threshold multiplier (0 = use default 0.90)
+	double			confidence_ratio;			// Score/threshold ratio for confirmed status (0 = use default 1.3)
+} StartRotationDetection_t;
+
+typedef struct {
+    HeaderInfo_t	header;
+
+	float			heading_deg;				// Aircraft heading in degrees for this detection slice
+} StartDetectionAtHeading_t;
+
+typedef struct {
+    HeaderInfo_t	header;
+} StopRotationDetection_t;
+
+typedef struct {
+    HeaderInfo_t	header;
+
+	uint32_t		tag_id;						// Tag ID for this bearing result
+	float			bearing_deg;				// Estimated bearing to transmitter (degrees)
+	float			r_squared;					// Goodness of fit (0..1)
+	uint32_t		n_valid_slices;				// Number of heading slices with confirmed detections
+	float			best_snr;					// Best SNR observed across all slices (dB)
+} BearingResult_t;
+
+typedef struct {
+    HeaderInfo_t	header;
+
 	// Descriptions and order are from the Interface Control Document
 	// Tag ID (uint32_t)
 	// The tag ID that was used for detection priori info. Useful for tractability.
@@ -266,6 +299,10 @@ typedef struct {
 	sizeof(TunnelProtocol::RawCaptureInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::AirspyStatusInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::Heartbeat_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
-	sizeof(TunnelProtocol::StatusConfirmationInfo_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN))
+	sizeof(TunnelProtocol::StatusConfirmationInfo_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+	sizeof(TunnelProtocol::StartRotationDetection_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+	sizeof(TunnelProtocol::StartDetectionAtHeading_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+	sizeof(TunnelProtocol::StopRotationDetection_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+	sizeof(TunnelProtocol::BearingResult_t) 			<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN))
 
 }
