@@ -106,6 +106,10 @@ typedef struct {
 	// 0 = normal logging, non-zero = enable --debug flag.
 	// Also enables debug output for uavrt_detection when non-zero.
 	uint32_t		debug_detector;
+
+	// Enable per-cycle spectrogram and IQ dump to the log directory.
+	// 0 = disabled, non-zero = save power.npy + iq.npy + meta.json per cycle.
+	uint32_t		dump_spectrogram;
 } StartDetectionInfo_t;
 
 typedef struct {
@@ -164,6 +168,7 @@ typedef struct {
 	double			detection_margin;			// EVT threshold multiplier (0 = use default 0.90)
 	double			confidence_ratio;			// Score/threshold ratio for confirmed status (0 = use default 1.3)
 	uint32_t		debug_detector;				// Enable verbose debug logging (0 = off, non-zero = on)
+	uint32_t		dump_spectrogram;			// Enable spectrogram/IQ dump (0 = off, non-zero = on)
 } StartRotationDetection_t;
 
 typedef struct {
