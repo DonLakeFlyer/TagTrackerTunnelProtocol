@@ -4,6 +4,9 @@
 
 namespace TunnelProtocol {
 
+// Increment for every incompatible wire-layout or command-semantics change.
+#define TUNNEL_PROTOCOL_VERSION 1
+
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
 #define COMMAND_ID_END_TAGS						3   // All new tags have been uploaded
@@ -18,10 +21,19 @@ namespace TunnelProtocol {
 #define COMMAND_ID_SAVE_LOGS					12	// Save logs to usb sd card connected to rpi
 #define COMMAND_ID_CLEAN_LOGS					13	// Clean logs from rpi
 #define COMMAND_ID_AIRSPY_STATUS				14	// Query whether an AirSpy device is connected
-#define COMMAND_ID_START_ROTATION_DETECTION		15	// Start rotation detection sequence (Python detector only)
-#define COMMAND_ID_START_DETECTION_AT_HEADING	16	// Start Python detector at heading; auto-stops on pulse/no-pulse
-#define COMMAND_ID_STOP_ROTATION_DETECTION		17	// Stop rotation detection and compute bearing (Python detector only)
+#define COMMAND_ID_START_COLLECTION             15  // Start persistent Python detector collection
+#define COMMAND_ID_START_COLLECTION_SLICE       16  // Arm one heading slice on the running collection
+#define COMMAND_ID_FINISH_COLLECTION            17  // Finalize or cancel a persistent collection
 #define COMMAND_ID_BEARING_RESULT				18	// Bearing calculation result sent to GCS (Python detector only)
+#define COMMAND_ID_COLLECTION_STATUS            19  // Asynchronous collection lifecycle event
+
+#define COLLECTION_FINISH_FINALIZE  0
+#define COLLECTION_FINISH_CANCEL    1
+
+#define COLLECTION_STATUS_SLICE_ARMED     1
+#define COLLECTION_STATUS_SLICE_COMPLETE  2
+#define COLLECTION_STATUS_FAILED          3
+#define COLLECTION_STATUS_STOPPED         4
 
 // AckInfo_t result values
 #define COMMAND_RESULT_SUCCESS		1
@@ -163,27 +175,43 @@ typedef struct {
 typedef struct {
     HeaderInfo_t	header;
 
+    uint32_t        collection_id;
 	uint32_t		radio_center_frequency_hz;	// Center frequency for SDR tuning
 	uint32_t		n_slices;					// Number of heading slices (informational)
 	double			detection_margin;			// EVT threshold multiplier (0 = use default 0.90)
 	double			confidence_ratio;			// Score/threshold ratio for confirmed status (0 = use default 1.3)
 	uint32_t		debug_detector;				// Enable verbose debug logging (0 = off, non-zero = on)
 	uint32_t		dump_spectrogram;			// Enable spectrogram/IQ dump (0 = off, non-zero = on)
-} StartRotationDetection_t;
+} StartCollection_t;
 
 typedef struct {
     HeaderInfo_t	header;
 
+    uint32_t        collection_id;
+    uint32_t        slice_id;
 	float			heading_deg;				// Aircraft heading in degrees for this detection slice
-} StartDetectionAtHeading_t;
+} StartCollectionSlice_t;
 
 typedef struct {
     HeaderInfo_t	header;
-} StopRotationDetection_t;
+    uint32_t        collection_id;
+    uint32_t        disposition;             // COLLECTION_FINISH_FINALIZE or COLLECTION_FINISH_CANCEL
+} FinishCollection_t;
+
+typedef struct {
+    HeaderInfo_t    header;
+    uint32_t        collection_id;
+    uint32_t        slice_id;
+    uint32_t        status;
+    uint32_t        expected_detectors;
+    uint32_t        completed_detectors;
+    uint32_t        error_code;
+} CollectionStatus_t;
 
 typedef struct {
     HeaderInfo_t	header;
 
+    uint32_t        collection_id;
 	uint32_t		tag_id;						// Tag ID for this bearing result
 	float			bearing_deg;				// Estimated bearing to transmitter (degrees)
 	float			r_squared;					// Goodness of fit (0..1)
@@ -193,6 +221,8 @@ typedef struct {
 
 typedef struct {
     HeaderInfo_t	header;
+    uint32_t    collection_id;
+    uint32_t    slice_id;
 
 	// Descriptions and order are from the Interface Control Document
 	// Tag ID (uint32_t)
@@ -292,6 +322,7 @@ typedef struct {
 typedef struct {
 	HeaderInfo_t 	header;
 
+    uint32_t        protocol_version;
 	uint16_t		system_id;
 	uint16_t		status;
 	float			cpu_temp_c;
@@ -311,9 +342,10 @@ typedef struct {
 	sizeof(TunnelProtocol::AirspyStatusInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::Heartbeat_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::StatusConfirmationInfo_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
-	sizeof(TunnelProtocol::StartRotationDetection_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
-	sizeof(TunnelProtocol::StartDetectionAtHeading_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
-	sizeof(TunnelProtocol::StopRotationDetection_t) 	<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+    sizeof(TunnelProtocol::StartCollection_t)             <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+    sizeof(TunnelProtocol::StartCollectionSlice_t)        <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+    sizeof(TunnelProtocol::FinishCollection_t)            <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+    sizeof(TunnelProtocol::CollectionStatus_t)            <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::BearingResult_t) 			<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN))
 
 }
