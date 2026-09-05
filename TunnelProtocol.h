@@ -269,8 +269,10 @@ typedef struct {
 	//   When intra_pulse2_msecs is 0 (single-rate tag), group_ind is
 	//   always 0.
 	uint16_t 	group_ind;
-	// Pulse group SNR (float64/double)
-	// TBD
+	// Python detector: fixed-offset absolute signal power for the K-pulse
+	// group, computed as sum(power) - K*noise with no local-max pooling.
+	// This value is intentionally not clamped and may be negative.
+	// C++ detector: legacy pulse group SNR.
 	double 		group_snr;
 	// This is the estimated noise PSD at the frequency of the pulse.
 	double		noise_psd;
