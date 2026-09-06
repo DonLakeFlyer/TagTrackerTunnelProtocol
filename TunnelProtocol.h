@@ -35,6 +35,13 @@ namespace TunnelProtocol {
 #define COLLECTION_STATUS_FAILED          3
 #define COLLECTION_STATUS_STOPPED         4
 
+// CollectionStatus_t::error_code when status == COLLECTION_STATUS_FAILED
+// (mirrors detector_protocol.py ErrorCode)
+#define COLLECTION_ERROR_PROCESS_FAILED         1
+#define COLLECTION_ERROR_UNEXPECTED_EXCEPTION   2
+#define COLLECTION_ERROR_REPORT_SEND_FAILED     3
+#define COLLECTION_ERROR_LOG_OPEN_FAILED        4
+
 // AckInfo_t result values
 #define COMMAND_RESULT_SUCCESS		1
 #define COMMAND_RESULT_FAILURE		0
@@ -188,7 +195,7 @@ typedef struct {
     HeaderInfo_t	header;
 
     uint32_t        collection_id;
-    uint32_t        slice_id;
+    uint32_t        slice_id;				// Opaque per-collection key, unique across slices (GCS sends 1-based visit order); use heading_deg for direction
 	float			heading_deg;				// Aircraft heading in degrees for this detection slice
 } StartCollectionSlice_t;
 
@@ -201,7 +208,7 @@ typedef struct {
 typedef struct {
     HeaderInfo_t    header;
     uint32_t        collection_id;
-    uint32_t        slice_id;
+    uint32_t        slice_id;               // Echoes StartCollectionSlice_t::slice_id (0 when not slice-specific)
     uint32_t        status;
     uint32_t        expected_detectors;
     uint32_t        completed_detectors;
@@ -222,7 +229,7 @@ typedef struct {
 typedef struct {
     HeaderInfo_t	header;
     uint32_t    collection_id;
-    uint32_t    slice_id;
+    uint32_t    slice_id;   // Echoes StartCollectionSlice_t::slice_id; (0, 0) for standalone detection outside a collection
 
 	// Descriptions and order are from the Interface Control Document
 	// Tag ID (uint32_t)
