@@ -326,8 +326,10 @@ typedef struct {
     double          predict_next_start_seconds; // Predicted next pulse time based on the winning rate
     double          snr;                        // Per-pulse SNR in dB
     double          score_ratio;                // Detection score / EVT threshold. For no-detection: best sub-threshold ratio
-    // Fixed-offset absolute signal power for the K-pulse group, sum(power) - K*noise,
-    // no local-max pooling. Intentionally unclamped; may be negative.
+    // Fixed-offset absolute signal power per pulse: (sum(power) - K*noise) / K
+    // over the K-pulse group, no local-max pooling. Per pulse so the value is on
+    // the same scale whatever K (acquisition or measurement) produced it.
+    // Intentionally unclamped; may be negative.
     double          signal_psd;
     double          noise_psd;                  // Estimated noise PSD at the pulse frequency
 
