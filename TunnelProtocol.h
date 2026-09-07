@@ -5,7 +5,7 @@
 namespace TunnelProtocol {
 
 // Increment for every incompatible wire-layout or command-semantics change.
-#define TUNNEL_PROTOCOL_VERSION 1
+#define TUNNEL_PROTOCOL_VERSION 2
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -13,7 +13,7 @@ namespace TunnelProtocol {
 #define COMMAND_ID_TAG              			4   // Tag info
 #define COMMAND_ID_START_DETECTION  			5   // Start pulse detection
 #define COMMAND_ID_STOP_DETECTION  				6   // Stop pulse detection
-#define COMMAND_ID_PULSE           				7   // Detected pulse value
+#define COMMAND_ID_PULSE           				7   // Detected pulse value (uavrt_detection only, see PulseInfo_t)
 #define COMMAND_ID_RAW_CAPTURE      			8 	// Capture raw sdr data
 #define COMMAND_ID_HEARTBEAT	   				9  	// Heartbeat message
 #define COMMAND_ID_START_ROTATION				10	// Start rotation, these ids are never sent as commands but are used to log the start and stop of rotation in the csv files
@@ -26,6 +26,7 @@ namespace TunnelProtocol {
 #define COMMAND_ID_FINISH_COLLECTION            17  // Finalize or cancel a persistent collection
 #define COMMAND_ID_BEARING_RESULT				18	// Bearing calculation result sent to GCS (Python detector only)
 #define COMMAND_ID_COLLECTION_STATUS            19  // Asynchronous collection lifecycle event
+#define COMMAND_ID_PYTHON_PULSE                 20  // Detected pulse value (Python detector only, see PythonPulseInfo_t)
 
 #define COLLECTION_FINISH_FINALIZE  0
 #define COLLECTION_FINISH_CANCEL    1
@@ -92,8 +93,10 @@ typedef struct {
 	uint32_t		intra_pulse_uncertainty_msecs;
 	// Intra-pulse jitter
 	uint32_t		intra_pulse_jitter_msecs;
-	// Number of pulses to integrate by
+	// Number of pulses to integrate by (Python: acquisition / pre-lock fold count)
 	uint32_t		k;
+    // Python detector only: pulses per fixed-offset post-lock measurement cycle. 0 = use default (5).
+    uint32_t        measurement_k;
 	// Probability of a false alarm
 	double			false_alarm_probability;
 	// The 1-based channel index from which this channel is output from the channelizer.
@@ -226,10 +229,12 @@ typedef struct {
 	float			best_snr;					// Best SNR observed across all slices (dB)
 } BearingResult_t;
 
+// uavrt_detection (DETECTION_MODE_UAVRT) pulse report. Frozen layout; the Python
+// detector reports through PythonPulseInfo_t / COMMAND_ID_PYTHON_PULSE instead.
 typedef struct {
     HeaderInfo_t	header;
-    uint32_t    collection_id;
-    uint32_t    slice_id;   // Echoes StartCollectionSlice_t::slice_id; (0, 0) for standalone detection outside a collection
+    uint32_t    collection_id;  // Unused by uavrt_detection (always 0)
+    uint32_t    slice_id;       // Unused by uavrt_detection (always 0)
 
 	// Descriptions and order are from the Interface Control Document
 	// Tag ID (uint32_t)
@@ -260,26 +265,10 @@ typedef struct {
 	// to be able to reconstruct the pulse group if needed. The value is incremented
 	// with each new pulse group sent out over UDP/ROS.
 	uint16_t 	group_seq_counter;
-	// Pulse group index / rate-switch hypothesis (uint16_t)
-	//
-	// C++ detector (DETECTION_MODE_UAVRT):
-	//   Index of this pulse within its K-pulse group (0..K-1).
-	//   Secondary-rate detections arrive on a separate tag_id (id + 1).
-	//
-	// Python detector (DETECTION_MODE_PYTHON):
-	//   Encodes the winning rate-switch hypothesis for the K-group.
-	//   Both rates are handled in a single detector process (same tag_id).
-	//     0          = pure rate A (primary/resting TIP)
-	//     1          = pure rate B (secondary/moving TIP)
-	//     2..K-1     = A→B switch at change-point c  (group_ind = 1 + c)
-	//     K..2K-3    = B→A switch at change-point c  (group_ind = K - 1 + c)
-	//   When intra_pulse2_msecs is 0 (single-rate tag), group_ind is
-	//   always 0.
+	// Index of this pulse within its K-pulse group (0..K-1).
+	// Secondary-rate detections arrive on a separate tag_id (id + 1).
 	uint16_t 	group_ind;
-	// Python detector: fixed-offset absolute signal power for the K-pulse
-	// group, computed as sum(power) - K*noise with no local-max pooling.
-	// This value is intentionally not clamped and may be negative.
-	// C++ detector: legacy pulse group SNR.
+	// Pulse group SNR
 	double 		group_snr;
 	// This is the estimated noise PSD at the frequency of the pulse.
 	double		noise_psd;
@@ -288,14 +277,9 @@ typedef struct {
 	//   1 = superthreshold pulse
 	//   2 = confirmed pulse (superthreshold + aligned with prior prediction)
 	//   3 = no pulse detected (detector searched this cycle and found nothing;
-	//       noise_psd carries the observed noise floor).
-	//       C++ detector: two separate processes for dual-rate tags, so two
-	//         no-detection messages per cycle (one per tag_id).
-	//       Python detector: single process handles both rates, so only one
-	//         no-detection message per cycle per tag.
-	//       For status 3: snr=0, predict_next=0, group_ind=0,
-	//       stft_score carries the best sub-threshold score ratio
-	//       (Python) or 0 (C++).
+	//       noise_psd carries the observed noise floor). Two separate processes
+	//       for dual-rate tags, so two no-detection messages per cycle (one per
+	//       tag_id). For status 3: snr=0, predict_next=0, group_ind=0, stft_score=0.
 	uint8_t 	detection_status;
 	// Confirmation status (bool converted to uint8_t)
 	// This property indicates if the pulse has been confirmed (1), or is of yet
@@ -320,6 +304,45 @@ static constexpr uint8_t kSubthresholdDetectionStatus   = 0;
 static constexpr uint8_t kSuperthresholdDetectionStatus  = 1;
 static constexpr uint8_t kConfirmedDetectionStatus       = 2;
 static constexpr uint8_t kNoPulseDetectionStatus         = 3;
+
+// PythonPulseInfo_t::rate_state — which pulse-rate hypothesis won for the K-group.
+// Both rates of a dual-rate tag are handled by one detector process (same tag_id).
+static constexpr uint8_t kRateStateA        = 0;    // pure rate A (primary/resting TIP)
+static constexpr uint8_t kRateStateB        = 1;    // pure rate B (secondary/moving TIP)
+static constexpr uint8_t kRateStateAToB     = 2;    // switched A->B within the group
+static constexpr uint8_t kRateStateBToA     = 3;    // switched B->A within the group
+
+// Python detector (DETECTION_MODE_PYTHON) pulse report.
+typedef struct {
+    HeaderInfo_t    header;
+
+    uint32_t        collection_id;
+    uint32_t        slice_id;                   // Echoes StartCollectionSlice_t::slice_id; (0, 0) outside a collection
+    uint32_t        tag_id;
+    uint32_t        frequency_hz;               // 0 = detector heartbeat (all other fields ignored)
+    uint32_t        cycle_counter;              // Increments once per detection cycle; same for every report from that cycle
+
+    double          start_time_seconds;         // Segment start, wall-clock UTC seconds
+    double          predict_next_start_seconds; // Predicted next pulse time based on the winning rate
+    double          snr;                        // Per-pulse SNR in dB
+    double          score_ratio;                // Detection score / EVT threshold. For no-detection: best sub-threshold ratio
+    // Fixed-offset absolute signal power for the K-pulse group, sum(power) - K*noise,
+    // no local-max pooling. Intentionally unclamped; may be negative.
+    double          signal_psd;
+    double          noise_psd;                  // Estimated noise PSD at the pulse frequency
+
+    uint8_t         detection_status;           // kXxxDetectionStatus. Status 3: one no-detection report per cycle per tag
+    uint8_t         confirmed_status;           // 1 when score_ratio >= confidence_ratio (StartCollection_t)
+    uint8_t         rate_state;                 // kRateStateXxx; always kRateStateA for single-rate tags
+    uint8_t         candidate_id;               // 0 = provisional lock, >0 = alternate lock candidate
+
+    double          latitude;                   // Antenna position/attitude at start_time_seconds
+    double          longitude;
+    double          altitude_rel;               // meters above launch
+    float           roll_deg;
+    float           pitch_deg;
+    float           yaw_deg;
+} PythonPulseInfo_t;
 
 typedef struct {
     HeaderInfo_t	header;
