@@ -5,7 +5,7 @@
 namespace TunnelProtocol {
 
 // Increment for every incompatible wire-layout or command-semantics change.
-#define TUNNEL_PROTOCOL_VERSION 2
+#define TUNNEL_PROTOCOL_VERSION 3
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -35,6 +35,16 @@ namespace TunnelProtocol {
 #define COLLECTION_STATUS_SLICE_COMPLETE  2
 #define COLLECTION_STATUS_FAILED          3
 #define COLLECTION_STATUS_STOPPED         4
+// Sent instead of BEARING_RESULT in reply to FINISH_COLLECTION(FINALIZE) when the
+// best lock candidate was confirmed on only one heading. The GCS should yaw to
+// CollectionStatus_t::revisit_heading_deg, send one more START_COLLECTION_SLICE
+// (new slice_id), wait for SLICE_COMPLETE, then send FINISH_COLLECTION again.
+// The controller requests at most one revisit per collection.
+#define COLLECTION_STATUS_REVISIT_REQUESTED 5
+
+// StartCollection_t::antenna_id — selects the controller's bearing-fit pattern table
+#define ANTENNA_ID_RA2A     0   // Telonics RA-2A / RA-2AHS 2-element
+#define ANTENNA_ID_RA23K    1   // Telonics RA-23K 3-element
 
 // CollectionStatus_t::error_code when status == COLLECTION_STATUS_FAILED
 // (mirrors detector_protocol.py ErrorCode)
@@ -93,10 +103,8 @@ typedef struct {
 	uint32_t		intra_pulse_uncertainty_msecs;
 	// Intra-pulse jitter
 	uint32_t		intra_pulse_jitter_msecs;
-	// Number of pulses to integrate by (Python: acquisition / pre-lock fold count)
+	// Number of pulses to integrate by (every detection cycle is a K-pulse fold)
 	uint32_t		k;
-    // Python detector only: pulses per fixed-offset post-lock measurement cycle. 0 = use default (5).
-    uint32_t        measurement_k;
 	// Probability of a false alarm
 	double			false_alarm_probability;
 	// The 1-based channel index from which this channel is output from the channelizer.
@@ -192,6 +200,7 @@ typedef struct {
 	double			confidence_ratio;			// Score/threshold ratio for confirmed status (0 = use default 1.3)
 	uint32_t		debug_detector;				// Enable verbose debug logging (0 = off, non-zero = on)
 	uint32_t		dump_spectrogram;			// Enable spectrogram/IQ dump (0 = off, non-zero = on)
+	uint32_t		antenna_id;					// ANTENNA_ID_xxx: pattern table for the bearing fit
 } StartCollection_t;
 
 typedef struct {
@@ -216,6 +225,7 @@ typedef struct {
     uint32_t        expected_detectors;
     uint32_t        completed_detectors;
     uint32_t        error_code;
+    float           revisit_heading_deg;    // COLLECTION_STATUS_REVISIT_REQUESTED only: heading to fly for the confirmation slice
 } CollectionStatus_t;
 
 typedef struct {
@@ -223,10 +233,11 @@ typedef struct {
 
     uint32_t        collection_id;
 	uint32_t		tag_id;						// Tag ID for this bearing result
-	float			bearing_deg;				// Estimated bearing to transmitter (degrees)
-	float			r_squared;					// Goodness of fit (0..1)
+	float			bearing_deg;				// Estimated bearing to transmitter (degrees). NaN = no bearing
+	float			r_squared;					// Confidence (0..1)
 	uint32_t		n_valid_slices;				// Number of heading slices with confirmed detections
 	float			best_snr;					// Best SNR observed across all slices (dB)
+	uint32_t		confirmed;					// 1 = the selected lock was seen independently on >= 2 headings (or on the revisit slice)
 } BearingResult_t;
 
 // uavrt_detection (DETECTION_MODE_UAVRT) pulse report. Frozen layout; the Python
