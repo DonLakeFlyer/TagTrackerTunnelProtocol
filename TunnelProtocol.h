@@ -5,7 +5,9 @@
 namespace TunnelProtocol {
 
 // Increment for every incompatible wire-layout or command-semantics change.
-#define TUNNEL_PROTOCOL_VERSION 3
+// v4: HeaderInfo_t::request_id, AckInfo_t::request_id, tag upload set fields
+//     (upload_id / tag_count / tag_index) on START_TAGS, TAG, END_TAGS.
+#define TUNNEL_PROTOCOL_VERSION 4
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -76,19 +78,29 @@ namespace TunnelProtocol {
 
 typedef struct {
 	uint32_t command;
+	// GCS -> controller commands: unique per new command, identical on every
+	// retry of that command so the controller can replay the original ACK
+	// instead of re-executing. Controller-originated messages (heartbeat,
+	// pulses, status, bearing) set 0.
+	uint32_t request_id;
 } HeaderInfo_t;
 
 typedef struct {
 	HeaderInfo_t 	header;
 
-	uint32_t		command;
-	uint32_t		result;
-    char            message[MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN - sizeof(HeaderInfo_t) - 2 * sizeof(uint32_t)];
+	uint32_t		command;		// command being acknowledged
+	uint32_t		request_id;		// HeaderInfo_t::request_id of that command
+	uint32_t		result;			// COMMAND_RESULT_*
+    char            message[MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN - sizeof(HeaderInfo_t) - 3 * sizeof(uint32_t)];
 } AckInfo_t;
 
 typedef struct {
 	HeaderInfo_t	header;
 
+	// Upload set this tag belongs to; must match the open START_TAGS bracket
+	uint32_t		upload_id;
+	// Position within the set, 0 .. StartTagsInfo_t::tag_count-1
+	uint32_t		tag_index;
 	// Tag id (uint 32)
 	uint32_t		id;
 	// Frequency (uint 32)
@@ -146,12 +158,22 @@ typedef struct {
     HeaderInfo_t	header;
 } StopDetectionInfo_t;
 
+// START_TAGS / TAG / END_TAGS form one upload set. The GCS picks a fresh
+// upload_id per set; the controller rejects TAG/END_TAGS carrying another id
+// and NACKs END_TAGS ("incomplete: missing i,j") until every tag_index in
+// 0..tag_count-1 has arrived. tag_count may be 0 to clear the tag list.
 typedef struct {
     HeaderInfo_t	header;
+
+	uint32_t		upload_id;
+	uint32_t		tag_count;
 } StartTagsInfo_t;
 
 typedef struct {
     HeaderInfo_t	header;
+
+	uint32_t		upload_id;	// must equal the START_TAGS upload_id
+	uint32_t		tag_count;	// must equal the START_TAGS tag_count
 } EndTagsInfo_t;
 
 typedef struct {
