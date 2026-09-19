@@ -7,7 +7,8 @@ namespace TunnelProtocol {
 // Increment for every incompatible wire-layout or command-semantics change.
 // v4: HeaderInfo_t::request_id, AckInfo_t::request_id, tag upload set fields
 //     (upload_id / tag_count / tag_index) on START_TAGS, TAG, END_TAGS.
-#define TUNNEL_PROTOCOL_VERSION 4
+// v5: COMMAND_ID_OPERATION_PROGRESS / OperationProgress_t.
+#define TUNNEL_PROTOCOL_VERSION 5
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -29,6 +30,12 @@ namespace TunnelProtocol {
 #define COMMAND_ID_BEARING_RESULT				18	// Bearing calculation result sent to GCS (Python detector only)
 #define COMMAND_ID_COLLECTION_STATUS            19  // Asynchronous collection lifecycle event
 #define COMMAND_ID_PYTHON_PULSE                 20  // Detected pulse value (Python detector only, see PythonPulseInfo_t)
+#define COMMAND_ID_OPERATION_PROGRESS           21  // Progress of a long-running command (see OperationProgress_t)
+
+// OperationProgress_t::state
+#define OPERATION_STATE_RUNNING     1
+#define OPERATION_STATE_COMPLETE    2
+#define OPERATION_STATE_FAILED      3
 
 #define COLLECTION_FINISH_FINALIZE  0
 #define COLLECTION_FINISH_CANCEL    1
@@ -93,6 +100,22 @@ typedef struct {
 	uint32_t		result;			// COMMAND_RESULT_*
     char            message[MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN - sizeof(HeaderInfo_t) - 3 * sizeof(uint32_t)];
 } AckInfo_t;
+
+// Controller -> GCS. The ACK for a long-running command means "accepted"; the
+// work itself is reported here. Sent on begin, on every step change and on
+// finish, and re-sent about once a second while RUNNING so a lost frame does
+// not strand the GCS. The controller runs at most one operation at a time and
+// NACKs a second long-running command with "Busy: ..." until this finishes.
+typedef struct {
+	HeaderInfo_t 	header;
+
+	uint32_t		command;		// command whose work is being reported
+	uint32_t		request_id;		// HeaderInfo_t::request_id of that command; 0 for controller-initiated work
+	uint32_t		state;			// OPERATION_STATE_*
+	uint32_t		step;			// completed steps, 0..step_count
+	uint32_t		step_count;		// 0 = indeterminate (show a busy indicator, not a fraction)
+    char            message[MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN - sizeof(HeaderInfo_t) - 5 * sizeof(uint32_t)];
+} OperationProgress_t;
 
 typedef struct {
 	HeaderInfo_t	header;
@@ -413,6 +436,7 @@ typedef struct {
     sizeof(TunnelProtocol::StartCollectionSlice_t)        <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
     sizeof(TunnelProtocol::FinishCollection_t)            <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
     sizeof(TunnelProtocol::CollectionStatus_t)            <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+    sizeof(TunnelProtocol::OperationProgress_t)           <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::BearingResult_t) 			<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN))
 
 }
