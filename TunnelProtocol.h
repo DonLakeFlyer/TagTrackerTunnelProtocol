@@ -8,7 +8,8 @@ namespace TunnelProtocol {
 // v4: HeaderInfo_t::request_id, AckInfo_t::request_id, tag upload set fields
 //     (upload_id / tag_count / tag_index) on START_TAGS, TAG, END_TAGS.
 // v5: COMMAND_ID_OPERATION_PROGRESS / OperationProgress_t.
-#define TUNNEL_PROTOCOL_VERSION 5
+// v6: COMMAND_ID_SET_LOG_LEVEL / SetLogLevel_t.
+#define TUNNEL_PROTOCOL_VERSION 6
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -31,6 +32,11 @@ namespace TunnelProtocol {
 #define COMMAND_ID_COLLECTION_STATUS            19  // Asynchronous collection lifecycle event
 #define COMMAND_ID_PYTHON_PULSE                 20  // Detected pulse value (Python detector only, see PythonPulseInfo_t)
 #define COMMAND_ID_OPERATION_PROGRESS           21  // Progress of a long-running command (see OperationProgress_t)
+#define COMMAND_ID_SET_LOG_LEVEL                22  // Enable/disable the controller's verbose log lines (see SetLogLevel_t)
+
+// SetLogLevel_t::level
+#define LOG_LEVEL_DEBUG     0   // Debug + Error lines (default)
+#define LOG_LEVEL_VERBOSE   1   // also per-pulse / per-frame lines
 
 // OperationProgress_t::state
 #define OPERATION_STATE_RUNNING     1
@@ -234,6 +240,13 @@ typedef struct {
 typedef struct {
     HeaderInfo_t	header;
 } AirspyStatusInfo_t;
+
+// GCS -> controller. Session-scoped: the controller reverts to LOG_LEVEL_DEBUG
+// on restart, so the GCS re-sends its setting on every connect.
+typedef struct {
+    HeaderInfo_t	header;
+	uint32_t		level;			// LOG_LEVEL_*
+} SetLogLevel_t;
 
 typedef struct {
     HeaderInfo_t	header;
