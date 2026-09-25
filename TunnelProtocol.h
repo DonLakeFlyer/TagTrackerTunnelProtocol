@@ -9,7 +9,9 @@ namespace TunnelProtocol {
 //     (upload_id / tag_count / tag_index) on START_TAGS, TAG, END_TAGS.
 // v5: COMMAND_ID_OPERATION_PROGRESS / OperationProgress_t.
 // v6: COMMAND_ID_SET_LOG_LEVEL / SetLogLevel_t.
-#define TUNNEL_PROTOCOL_VERSION 6
+// v7: COMMAND_ID_DETECTOR_HEARTBEAT / DetectorHeartbeat_t; PULSE and PYTHON_PULSE
+//     are never sent with frequency_hz == 0 any more.
+#define TUNNEL_PROTOCOL_VERSION 7
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -33,6 +35,7 @@ namespace TunnelProtocol {
 #define COMMAND_ID_PYTHON_PULSE                 20  // Detected pulse value (Python detector only, see PythonPulseInfo_t)
 #define COMMAND_ID_OPERATION_PROGRESS           21  // Progress of a long-running command (see OperationProgress_t)
 #define COMMAND_ID_SET_LOG_LEVEL                22  // Enable/disable the controller's verbose log lines (see SetLogLevel_t)
+#define COMMAND_ID_DETECTOR_HEARTBEAT           23  // 1 Hz liveness from each detector process (see DetectorHeartbeat_t)
 
 // SetLogLevel_t::level
 #define LOG_LEVEL_DEBUG     0   // Debug + Error lines (default)
@@ -248,6 +251,14 @@ typedef struct {
 	uint32_t		level;			// LOG_LEVEL_*
 } SetLogLevel_t;
 
+// Controller -> GCS, relayed from each running detector at 1 Hz. The GCS
+// watchdogs on it per tag_id. uavrt dual-rate tags heartbeat on id and id + 1.
+typedef struct {
+    HeaderInfo_t	header;
+	uint32_t		tag_id;
+	uint32_t		detection_mode;	// DETECTION_MODE_* of the detector that sent it
+} DetectorHeartbeat_t;
+
 typedef struct {
     HeaderInfo_t	header;
 
@@ -310,7 +321,7 @@ typedef struct {
 	// The tag ID that was used for detection priori info. Useful for tractability.
 	uint32_t 	tag_id;
 	// Frequency (uint32_t)
-	// Frequency at which pulse was detected. 0 value indicates detector heartbeat.
+	// Frequency at which pulse was detected. Never 0 (protocol v7: heartbeats are DETECTOR_HEARTBEAT).
 	uint32_t 	frequency_hz;
 	// Time start (builtin_interfaces/Time (double))
 	// System time at rising edge of pulse time bin.
@@ -388,7 +399,7 @@ typedef struct {
     uint32_t        collection_id;
     uint32_t        slice_id;                   // Echoes StartCollectionSlice_t::slice_id; (0, 0) outside a collection
     uint32_t        tag_id;
-    uint32_t        frequency_hz;               // 0 = detector heartbeat (all other fields ignored)
+    uint32_t        frequency_hz;               // Never 0 (protocol v7: heartbeats are DETECTOR_HEARTBEAT)
     uint32_t        cycle_counter;              // Increments once per detection cycle; same for every report from that cycle
 
     double          start_time_seconds;         // Segment start, wall-clock UTC seconds
