@@ -387,8 +387,8 @@ static constexpr uint8_t kNoPulseDetectionStatus         = 3;
 
 // PythonPulseInfo_t::rate_state — which pulse-rate hypothesis won for the K-group.
 // Both rates of a dual-rate tag are handled by one detector process (same tag_id).
-static constexpr uint8_t kRateStateA        = 0;    // pure rate A (primary/resting TIP)
-static constexpr uint8_t kRateStateB        = 1;    // pure rate B (secondary/moving TIP)
+static constexpr uint8_t kRateStateA        = 0;    // pure rate A (TagInfo_t::intra_pulse1_msecs)
+static constexpr uint8_t kRateStateB        = 1;    // pure rate B (TagInfo_t::intra_pulse2_msecs)
 static constexpr uint8_t kRateStateAToB     = 2;    // switched A->B within the group
 static constexpr uint8_t kRateStateBToA     = 3;    // switched B->A within the group
 
