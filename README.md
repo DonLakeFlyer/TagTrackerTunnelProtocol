@@ -38,6 +38,7 @@ NACKed with `Busy: <operation> in progress`.
 
 | Version | Change |
 | --- | --- |
+| 8 | `START_IQ_RECORDING` / `STOP_IQ_RECORDING` and `HEARTBEAT_STATUS_RECORDING` |
 | 5 | `OPERATION_PROGRESS` message for long-running commands |
 | 4 | `request_id` in `HeaderInfo_t` and `AckInfo_t`; `upload_id`/`tag_count`/`tag_index` on the tag upload set |
 | 3 | `antenna_id`, revisit request, `confirmed` flag; drop `measurement_k` |

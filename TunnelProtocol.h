@@ -11,7 +11,8 @@ namespace TunnelProtocol {
 // v6: COMMAND_ID_SET_LOG_LEVEL / SetLogLevel_t.
 // v7: COMMAND_ID_DETECTOR_HEARTBEAT / DetectorHeartbeat_t; PULSE and PYTHON_PULSE
 //     are never sent with frequency_hz == 0 any more.
-#define TUNNEL_PROTOCOL_VERSION 7
+// v8: COMMAND_ID_START_IQ_RECORDING / COMMAND_ID_STOP_IQ_RECORDING; HEARTBEAT_STATUS_RECORDING.
+#define TUNNEL_PROTOCOL_VERSION 8
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -36,6 +37,8 @@ namespace TunnelProtocol {
 #define COMMAND_ID_OPERATION_PROGRESS           21  // Progress of a long-running command (see OperationProgress_t)
 #define COMMAND_ID_SET_LOG_LEVEL                22  // Enable/disable the controller's verbose log lines (see SetLogLevel_t)
 #define COMMAND_ID_DETECTOR_HEARTBEAT           23  // 1 Hz liveness from each detector process (see DetectorHeartbeat_t)
+#define COMMAND_ID_START_IQ_RECORDING           24  // Record each tag's decimated IQ stream, no detection (see StartIqRecording_t)
+#define COMMAND_ID_STOP_IQ_RECORDING            25  // Stop an IQ recording
 
 // SetLogLevel_t::level
 #define LOG_LEVEL_DEBUG     0   // Debug + Error lines (default)
@@ -87,6 +90,7 @@ namespace TunnelProtocol {
 #define HEARTBEAT_STATUS_HAS_TAGS				2	// Tags are known, waiting for detection start
 #define HEARTBEAT_STATUS_DETECTING				3	// Detection is in progress
 #define HEARTBEAT_STATUS_CAPTURE				4	// Capturing raw data
+#define HEARTBEAT_STATUS_RECORDING              5   // Recording decimated IQ (START_IQ_RECORDING)
 
 #ifndef MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN
 #define MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN 128
@@ -189,6 +193,20 @@ typedef struct {
 typedef struct {
     HeaderInfo_t	header;
 } StopDetectionInfo_t;
+
+// GCS -> controller, from HAS_TAGS. Runs the same SDR front end as detection but
+// writes each uploaded tag's decimated IQ to the log dir instead of detecting
+// (antenna pattern calibration). Runs until STOP_IQ_RECORDING.
+typedef struct {
+    HeaderInfo_t    header;
+
+    uint32_t        radio_center_frequency_hz;
+    uint32_t        gain;                       // AirSpy Mini only, 1-21
+} StartIqRecording_t;
+
+typedef struct {
+    HeaderInfo_t    header;
+} StopIqRecording_t;
 
 // START_TAGS / TAG / END_TAGS form one upload set. The GCS picks a fresh
 // upload_id per set; the controller rejects TAG/END_TAGS carrying another id
@@ -449,6 +467,8 @@ typedef struct {
 	sizeof(TunnelProtocol::EndTagsInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::StartDetectionInfo_t) 		<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::StopDetectionInfo_t) 		<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+    sizeof(TunnelProtocol::StartIqRecording_t)            <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
+    sizeof(TunnelProtocol::StopIqRecording_t)             <= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::SaveLogsInfo_t) 			<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::CleanLogsInfo_t) 		<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
 	sizeof(TunnelProtocol::PulseInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
