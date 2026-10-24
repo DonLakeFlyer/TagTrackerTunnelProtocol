@@ -38,6 +38,7 @@ NACKed with `Busy: <operation> in progress`.
 
 | Version | Change |
 | --- | --- |
+| 9 | `Heartbeat_t::cpu_temp_c` replaced by `cpu_throttle_flags` (`CPU_THROTTLE_FLAG_THERMAL`, `CPU_THROTTLE_FLAG_UNDERVOLTAGE`) |
 | 8 | `START_IQ_RECORDING` / `STOP_IQ_RECORDING` and `HEARTBEAT_STATUS_RECORDING` |
 | 5 | `OPERATION_PROGRESS` message for long-running commands |
 | 4 | `request_id` in `HeaderInfo_t` and `AckInfo_t`; `upload_id`/`tag_count`/`tag_index` on the tag upload set |

@@ -12,7 +12,8 @@ namespace TunnelProtocol {
 // v7: COMMAND_ID_DETECTOR_HEARTBEAT / DetectorHeartbeat_t; PULSE and PYTHON_PULSE
 //     are never sent with frequency_hz == 0 any more.
 // v8: COMMAND_ID_START_IQ_RECORDING / COMMAND_ID_STOP_IQ_RECORDING; HEARTBEAT_STATUS_RECORDING.
-#define TUNNEL_PROTOCOL_VERSION 8
+// v9: Heartbeat_t::cpu_temp_c replaced by cpu_throttle_flags (CPU_THROTTLE_FLAG_*).
+#define TUNNEL_PROTOCOL_VERSION 9
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -457,8 +458,13 @@ typedef struct {
     uint32_t        protocol_version;
 	uint16_t		system_id;
 	uint16_t		status;
-	float			cpu_temp_c;
+	uint8_t			cpu_throttle_flags;	// CPU_THROTTLE_FLAG_* active now; 0 where the controller has no throttle source
+	uint8_t			reserved[3];		// Zero
 } Heartbeat_t;
+
+// Heartbeat_t::cpu_throttle_flags (current state, not sticky)
+#define CPU_THROTTLE_FLAG_THERMAL			0x01	// CPU is slowed by heat
+#define CPU_THROTTLE_FLAG_UNDERVOLTAGE		0x02	// Supply voltage is low
 
 #define TunnelProtocolValidateSizes \
 	((sizeof(TunnelProtocol::AckInfo_t) 				<= MAVLINK_MSG_TUNNEL_FIELD_PAYLOAD_LEN && \
