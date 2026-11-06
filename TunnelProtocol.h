@@ -13,7 +13,8 @@ namespace TunnelProtocol {
 //     are never sent with frequency_hz == 0 any more.
 // v8: COMMAND_ID_START_IQ_RECORDING / COMMAND_ID_STOP_IQ_RECORDING; HEARTBEAT_STATUS_RECORDING.
 // v9: Heartbeat_t::cpu_temp_c replaced by cpu_throttle_flags (CPU_THROTTLE_FLAG_*).
-#define TUNNEL_PROTOCOL_VERSION 9
+// v10: TagInfo_t::name / rate1_name / rate2_name.
+#define TUNNEL_PROTOCOL_VERSION 10
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -165,6 +166,11 @@ typedef struct {
 	double			ip1_sigma;
 	double			ip2_mu;
 	double			ip2_sigma;
+	// Display names for logs only. UTF-8, clipped by the sender; always NUL-terminated
+	// (at most 15 / 7 bytes). Empty = unnamed. Not part of tag identity.
+	char			name[16];
+	char			rate1_name[8];
+	char			rate2_name[8];
 } TagInfo_t;
 
 typedef struct {
