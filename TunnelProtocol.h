@@ -14,7 +14,8 @@ namespace TunnelProtocol {
 // v8: COMMAND_ID_START_IQ_RECORDING / COMMAND_ID_STOP_IQ_RECORDING; HEARTBEAT_STATUS_RECORDING.
 // v9: Heartbeat_t::cpu_temp_c replaced by cpu_throttle_flags (CPU_THROTTLE_FLAG_*).
 // v10: TagInfo_t::name / rate1_name / rate2_name.
-#define TUNNEL_PROTOCOL_VERSION 10
+// v11: Heartbeat_t::cpu_throttle_since_boot_flags (was reserved[0]).
+#define TUNNEL_PROTOCOL_VERSION 11
 
 #define COMMAND_ID_ACK              			1   // Ack response to command
 #define COMMAND_ID_START_TAGS					2   // Previous tag set should be cleared, new tags are about to be uploaded
@@ -465,10 +466,11 @@ typedef struct {
 	uint16_t		system_id;
 	uint16_t		status;
 	uint8_t			cpu_throttle_flags;	// CPU_THROTTLE_FLAG_* active now; 0 where the controller has no throttle source
-	uint8_t			reserved[3];		// Zero
+	uint8_t			cpu_throttle_since_boot_flags;	// CPU_THROTTLE_FLAG_* seen at any time since the controller's computer booted
+	uint8_t			reserved[2];		// Zero
 } Heartbeat_t;
 
-// Heartbeat_t::cpu_throttle_flags (current state, not sticky)
+// Heartbeat_t::cpu_throttle_flags and cpu_throttle_since_boot_flags
 #define CPU_THROTTLE_FLAG_THERMAL			0x01	// CPU is slowed by heat
 #define CPU_THROTTLE_FLAG_UNDERVOLTAGE		0x02	// Supply voltage is low
 

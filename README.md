@@ -38,6 +38,7 @@ NACKed with `Busy: <operation> in progress`.
 
 | Version | Change |
 | --- | --- |
+| 11 | `Heartbeat_t::cpu_throttle_since_boot_flags` (was `reserved[0]`): the `CPU_THROTTLE_FLAG_*` conditions seen at any time since the controller's computer booted |
 | 10 | `TagInfo_t::name`, `rate1_name`, `rate2_name` (fixed char arrays, clipped by the sender, for logs only) |
 | 9 | `Heartbeat_t::cpu_temp_c` replaced by `cpu_throttle_flags` (`CPU_THROTTLE_FLAG_THERMAL`, `CPU_THROTTLE_FLAG_UNDERVOLTAGE`) |
 | 8 | `START_IQ_RECORDING` / `STOP_IQ_RECORDING` and `HEARTBEAT_STATUS_RECORDING` |
